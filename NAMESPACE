@@ -2,7 +2,10 @@
 
 export(via_cpp)
 export(via_cpp_cleanup)
+export(via_cpp_cleanup_fixed)
 export(via_cpp_error)
+export(via_cpp_error_fixed)
+export(via_cpp_fixed)
 export(via_r)
 export(via_r_cleanup)
 export(via_r_error)

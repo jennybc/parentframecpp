@@ -4,10 +4,22 @@ call_report_from_cpp <- function() {
   invisible(.Call(`_parentframecpp_call_report_from_cpp`))
 }
 
+call_report_from_cpp_fixed <- function(caller_env) {
+  invisible(.Call(`_parentframecpp_call_report_from_cpp_fixed`, caller_env))
+}
+
 call_cleanup_from_cpp <- function() {
   .Call(`_parentframecpp_call_cleanup_from_cpp`)
 }
 
+call_cleanup_from_cpp_fixed <- function(caller_env) {
+  .Call(`_parentframecpp_call_cleanup_from_cpp_fixed`, caller_env)
+}
+
 call_error_from_cpp <- function(x) {
   invisible(.Call(`_parentframecpp_call_error_from_cpp`, x))
+}
+
+call_error_from_cpp_fixed <- function(x, caller_env) {
+  invisible(.Call(`_parentframecpp_call_error_from_cpp_fixed`, x, caller_env))
 }

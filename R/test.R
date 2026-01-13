@@ -19,6 +19,13 @@ via_cpp <- function() {
   call_report_from_cpp()
 }
 
+#' Test parent.frame() via C++ (attempted fix using Rf_eval)
+#' @export
+via_cpp_fixed <- function() {
+  I_am_via_cpp_fixed <- TRUE
+  call_report_from_cpp_fixed(environment())
+}
+
 # Helper that uses withr::defer() with parent.frame()
 helper_with_cleanup <- function() {
   tmp <- tempfile()
@@ -46,6 +53,15 @@ via_cpp_cleanup <- function() {
   path
 }
 
+#' Test withr::defer() via C++ (fixed using Rf_eval)
+#' @export
+via_cpp_cleanup_fixed <- function() {
+  I_am_via_cpp_cleanup_fixed <- TRUE
+  path <- call_cleanup_from_cpp_fixed(environment())
+  cat("File exists after helper via C++ (fixed):", file.exists(path), "\n")
+  path
+}
+
 # Helper that throws an error, attributed to its caller
 helper_that_errors <- function(x, call = rlang::caller_env()) {
   rlang::abort(
@@ -69,5 +85,14 @@ via_r_error <- function(x = -1) {
 via_cpp_error <- function(x = -1) {
   I_am_via_cpp_error <- TRUE
   call_error_from_cpp(x)
+  invisible(x)
+}
+
+#' Test rlang::abort() error attribution via C++ (fixed using Rf_eval)
+#' @param x A number
+#' @export
+via_cpp_error_fixed <- function(x = -1) {
+  I_am_via_cpp_error_fixed <- TRUE
+  call_error_from_cpp_fixed(x, environment())
   invisible(x)
 }
