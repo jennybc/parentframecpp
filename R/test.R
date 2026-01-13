@@ -45,3 +45,29 @@ via_cpp_cleanup <- function() {
   cat("File exists after helper via C++:", file.exists(path), "\n")
   path
 }
+
+# Helper that throws an error, attributed to its caller
+helper_that_errors <- function(x, call = rlang::caller_env()) {
+  rlang::abort(
+    "`x` must be positive.",
+    call = call
+  )
+}
+
+#' Test rlang::abort() error attribution via pure R
+#' @param x A number
+#' @export
+via_r_error <- function(x = -1) {
+  I_am_via_r_error <- TRUE
+  helper_that_errors(x)
+  invisible(x)
+}
+
+#' Test rlang::abort() error attribution via C++
+#' @param x A number
+#' @export
+via_cpp_error <- function(x = -1) {
+  I_am_via_cpp_error <- TRUE
+  call_error_from_cpp(x)
+  invisible(x)
+}

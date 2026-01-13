@@ -44,7 +44,7 @@ parentframecpp:::report_parent
 #>         "\n")
 #>     cat("Is globalenv?:", identical(envir, globalenv()), "\n")
 #> }
-#> <bytecode: 0x11a2ca5d8>
+#> <bytecode: 0x1086178d0>
 #> <environment: namespace:parentframecpp>
 ```
 
@@ -59,7 +59,7 @@ via_r
 #>     I_am_via_r <- TRUE
 #>     report_parent()
 #> }
-#> <bytecode: 0x11a52df40>
+#> <bytecode: 0x10912f278>
 #> <environment: namespace:parentframecpp>
 
 via_cpp
@@ -68,7 +68,7 @@ via_cpp
 #>     I_am_via_cpp <- TRUE
 #>     call_report_from_cpp()
 #> }
-#> <bytecode: 0x11a5fb8f8>
+#> <bytecode: 0x1091fafe0>
 #> <environment: namespace:parentframecpp>
 ```
 
@@ -123,7 +123,7 @@ parentframecpp:::helper_with_cleanup
 #>     withr::defer(unlink(tmp), envir = parent.frame())
 #>     tmp
 #> }
-#> <bytecode: 0x119d9e810>
+#> <bytecode: 0x128b29a88>
 #> <environment: namespace:parentframecpp>
 ```
 
@@ -138,7 +138,7 @@ via_r_cleanup
 #>     cat("File exists after helper:", file.exists(path), "\n")
 #>     path
 #> }
-#> <bytecode: 0x11cc9f680>
+#> <bytecode: 0x1082196d8>
 #> <environment: namespace:parentframecpp>
 
 via_cpp_cleanup
@@ -150,7 +150,7 @@ via_cpp_cleanup
 #>         "\n")
 #>     path
 #> }
-#> <bytecode: 0x11cce93a8>
+#> <bytecode: 0x108264888>
 #> <environment: namespace:parentframecpp>
 ```
 
@@ -168,13 +168,13 @@ Now the demo:
 
 ``` r
 tf1 <- via_r_cleanup()
-#> Created: /tmp/RtmpVZtbeg/file71fb26b8365f 
+#> Created: /tmp/Rtmpa0JkWD/file7c6a56f716cf 
 #> File exists after helper: TRUE
 file.exists(tf1)
 #> [1] FALSE
 
 tf2 <- via_cpp_cleanup()
-#> Created: /tmp/RtmpVZtbeg/file71fb7f9aad5 
+#> Created: /tmp/Rtmpa0JkWD/file7c6a77fa9ca3 
 #> File exists after helper via C++: TRUE
 file.exists(tf2)
 #> [1] TRUE
@@ -185,3 +185,70 @@ environment and runs when that function exits, i.e. the tempfile no
 longer exists. When routed through C++, cleanup is scheduled in
 `globalenv()` and the tempfile persists after `via_cpp_cleanup()`
 returns.
+
+## The `rlang::abort()` example
+
+Another angle: attributing errors to the correct user-facing function
+via
+[`rlang::abort()`](https://rlang.r-lib.org/reference/topic-error-call.html).
+
+The helper throws an error, using `caller_env()` to attribute it to its
+caller:
+
+``` r
+parentframecpp:::helper_that_errors
+#> function (x, call = rlang::caller_env()) 
+#> {
+#>     rlang::abort("`x` must be positive.", call = call)
+#> }
+#> <bytecode: 0x1094c5738>
+#> <environment: namespace:parentframecpp>
+```
+
+Two wrappers that differ only in *how* they call the helper:
+
+``` r
+via_r_error
+#> function (x = -1) 
+#> {
+#>     I_am_via_r_error <- TRUE
+#>     helper_that_errors(x)
+#> }
+#> <bytecode: 0x109906668>
+#> <environment: namespace:parentframecpp>
+
+via_cpp_error
+#> function (x = -1) 
+#> {
+#>     I_am_via_cpp_error <- TRUE
+#>     call_error_from_cpp(x)
+#> }
+#> <bytecode: 0x1099f1ff8>
+#> <environment: namespace:parentframecpp>
+```
+
+The C++ intermediate:
+
+``` cpp
+[[cpp11::register]]
+void call_error_from_cpp(cpp11::sexp x) {
+  cpp11::function helper = cpp11::package("parentframecpp")["helper_that_errors"];
+  helper(x);
+}
+```
+
+Now the demo:
+
+``` r
+via_r_error()
+#> Error in `via_r_error()`:
+#> ! `x` must be positive.
+
+via_cpp_error()
+#> Error:
+#> ! `x` must be positive.
+```
+
+When called via pure R, the error correctly reports `via_r_error()` as
+the source. When routed through C++, `caller_env()` resolves to
+`globalenv()` and the error doesn’t mention `via_cpp_error()` at all.

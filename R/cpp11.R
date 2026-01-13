@@ -7,3 +7,7 @@ call_report_from_cpp <- function() {
 call_cleanup_from_cpp <- function() {
   .Call(`_parentframecpp_call_cleanup_from_cpp`)
 }
+
+call_error_from_cpp <- function(x) {
+  invisible(.Call(`_parentframecpp_call_error_from_cpp`, x))
+}

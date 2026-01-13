@@ -11,3 +11,9 @@ cpp11::sexp call_cleanup_from_cpp() {
   cpp11::function helper = cpp11::package("parentframecpp")["helper_with_cleanup"];
   return helper();
 }
+
+[[cpp11::register]]
+void call_error_from_cpp(cpp11::sexp x) {
+  cpp11::function helper = cpp11::package("parentframecpp")["helper_that_errors"];
+  helper(x);
+}

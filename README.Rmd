@@ -119,3 +119,42 @@ file.exists(tf2)
 
 When called via pure R, cleanup is scheduled in `via_r_cleanup()`'s environment and runs when that function exits, i.e. the tempfile no longer exists.
 When routed through C++, cleanup is scheduled in `globalenv()` and the tempfile persists after `via_cpp_cleanup()` returns.
+
+## The `rlang::abort()` example
+
+Another angle: attributing errors to the correct user-facing function via [`rlang::abort()`](https://rlang.r-lib.org/reference/topic-error-call.html).
+
+The helper throws an error, using `caller_env()` to attribute it to its caller:
+
+```{r}
+parentframecpp:::helper_that_errors
+```
+
+Two wrappers that differ only in *how* they call the helper:
+
+```{r}
+via_r_error
+
+via_cpp_error
+```
+
+The C++ intermediate:
+
+```cpp
+[[cpp11::register]]
+void call_error_from_cpp(cpp11::sexp x) {
+  cpp11::function helper = cpp11::package("parentframecpp")["helper_that_errors"];
+  helper(x);
+}
+```
+
+Now the demo:
+
+```{r, error = TRUE}
+via_r_error()
+
+via_cpp_error()
+```
+
+When called via pure R, the error correctly reports `via_r_error()` as the source.
+When routed through C++, `caller_env()` resolves to `globalenv()` and the error doesn't mention `via_cpp_error()` at all.

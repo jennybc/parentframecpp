@@ -20,10 +20,19 @@ extern "C" SEXP _parentframecpp_call_cleanup_from_cpp() {
     return cpp11::as_sexp(call_cleanup_from_cpp());
   END_CPP11
 }
+// code.cpp
+void call_error_from_cpp(cpp11::sexp x);
+extern "C" SEXP _parentframecpp_call_error_from_cpp(SEXP x) {
+  BEGIN_CPP11
+    call_error_from_cpp(cpp11::as_cpp<cpp11::decay_t<cpp11::sexp>>(x));
+    return R_NilValue;
+  END_CPP11
+}
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
     {"_parentframecpp_call_cleanup_from_cpp", (DL_FUNC) &_parentframecpp_call_cleanup_from_cpp, 0},
+    {"_parentframecpp_call_error_from_cpp",   (DL_FUNC) &_parentframecpp_call_error_from_cpp,   1},
     {"_parentframecpp_call_report_from_cpp",  (DL_FUNC) &_parentframecpp_call_report_from_cpp,  0},
     {NULL, NULL, 0}
 };
