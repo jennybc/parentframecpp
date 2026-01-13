@@ -44,7 +44,7 @@ parentframecpp:::report_parent
 #>         "\n")
 #>     cat("Is globalenv?:", identical(envir, globalenv()), "\n")
 #> }
-#> <bytecode: 0x1086178d0>
+#> <bytecode: 0x11a728b48>
 #> <environment: namespace:parentframecpp>
 ```
 
@@ -59,7 +59,7 @@ via_r
 #>     I_am_via_r <- TRUE
 #>     report_parent()
 #> }
-#> <bytecode: 0x10912f278>
+#> <bytecode: 0x103b35af8>
 #> <environment: namespace:parentframecpp>
 
 via_cpp
@@ -68,7 +68,7 @@ via_cpp
 #>     I_am_via_cpp <- TRUE
 #>     call_report_from_cpp()
 #> }
-#> <bytecode: 0x1091fafe0>
+#> <bytecode: 0x103bc0dc8>
 #> <environment: namespace:parentframecpp>
 ```
 
@@ -123,7 +123,7 @@ parentframecpp:::helper_with_cleanup
 #>     withr::defer(unlink(tmp), envir = parent.frame())
 #>     tmp
 #> }
-#> <bytecode: 0x128b29a88>
+#> <bytecode: 0x12b11bd90>
 #> <environment: namespace:parentframecpp>
 ```
 
@@ -138,7 +138,7 @@ via_r_cleanup
 #>     cat("File exists after helper:", file.exists(path), "\n")
 #>     path
 #> }
-#> <bytecode: 0x1082196d8>
+#> <bytecode: 0x11a32d008>
 #> <environment: namespace:parentframecpp>
 
 via_cpp_cleanup
@@ -150,7 +150,7 @@ via_cpp_cleanup
 #>         "\n")
 #>     path
 #> }
-#> <bytecode: 0x108264888>
+#> <bytecode: 0x11a48d760>
 #> <environment: namespace:parentframecpp>
 ```
 
@@ -168,13 +168,13 @@ Now the demo:
 
 ``` r
 tf1 <- via_r_cleanup()
-#> Created: /tmp/Rtmpa0JkWD/file7c6a56f716cf 
+#> Created: /tmp/Rtmp0uTbE9/file9c2f2a682251 
 #> File exists after helper: TRUE
 file.exists(tf1)
 #> [1] FALSE
 
 tf2 <- via_cpp_cleanup()
-#> Created: /tmp/Rtmpa0JkWD/file7c6a77fa9ca3 
+#> Created: /tmp/Rtmp0uTbE9/file9c2f1aa50997 
 #> File exists after helper via C++: TRUE
 file.exists(tf2)
 #> [1] TRUE
@@ -201,7 +201,7 @@ parentframecpp:::helper_that_errors
 #> {
 #>     rlang::abort("`x` must be positive.", call = call)
 #> }
-#> <bytecode: 0x1094c5738>
+#> <bytecode: 0x12b545360>
 #> <environment: namespace:parentframecpp>
 ```
 
@@ -213,8 +213,9 @@ via_r_error
 #> {
 #>     I_am_via_r_error <- TRUE
 #>     helper_that_errors(x)
+#>     invisible(x)
 #> }
-#> <bytecode: 0x109906668>
+#> <bytecode: 0x10487e348>
 #> <environment: namespace:parentframecpp>
 
 via_cpp_error
@@ -222,8 +223,9 @@ via_cpp_error
 #> {
 #>     I_am_via_cpp_error <- TRUE
 #>     call_error_from_cpp(x)
+#>     invisible(x)
 #> }
-#> <bytecode: 0x1099f1ff8>
+#> <bytecode: 0x1199ff7c8>
 #> <environment: namespace:parentframecpp>
 ```
 
@@ -252,3 +254,68 @@ via_cpp_error()
 When called via pure R, the error correctly reports `via_r_error()` as
 the source. When routed through C++, `caller_env()` resolves to
 `globalenv()` and the error doesn’t mention `via_cpp_error()` at all.
+
+## A fix: using `Rf_eval()` with the caller’s environment
+
+The problem occurs because directly invoking an R function from C++ (via
+`cpp11::function`) creates a “top-level” call that isn’t nested in the R
+call stack.
+
+The fix: instead of calling the function directly, construct a call
+object and evaluate it *in* the caller’s environment using `Rf_eval()`.
+
+The R wrapper passes its environment to C++:
+
+``` r
+via_cpp_fixed
+#> function () 
+#> {
+#>     I_am_via_cpp_fixed <- TRUE
+#>     call_report_from_cpp_fixed(environment())
+#> }
+#> <bytecode: 0x119c478f8>
+#> <environment: namespace:parentframecpp>
+```
+
+The C++ code builds a call and evaluates it in that environment:
+
+``` cpp
+[[cpp11::register]]
+void call_report_from_cpp_fixed(SEXP caller_env) {
+  // Look up function using R's namespace API
+  SEXP ns = PROTECT(R_FindNamespace(Rf_mkString("parentframecpp")));
+  SEXP fn = Rf_findVarInFrame(ns, Rf_install("report_parent"));
+
+  // Build a call: report_parent()
+  SEXP call = PROTECT(Rf_lang1(fn));
+
+  // Evaluate the call in the caller's environment
+  Rf_eval(call, caller_env);
+
+  UNPROTECT(2);
+}
+```
+
+Now `parent.frame()` correctly resolves:
+
+``` r
+via_cpp_fixed()
+#> envir contents: I_am_via_cpp_fixed 
+#> Is globalenv?: FALSE
+```
+
+The same pattern fixes the other examples:
+
+``` r
+tf_fixed <- via_cpp_cleanup_fixed()
+#> Created: /tmp/Rtmp0uTbE9/file9c2f44ece84a 
+#> File exists after helper via C++ (fixed): TRUE
+file.exists(tf_fixed)
+#> [1] FALSE
+```
+
+``` r
+via_cpp_error_fixed()
+#> Error in `via_cpp_error_fixed()`:
+#> ! `x` must be positive.
+```

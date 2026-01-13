@@ -14,10 +14,25 @@ extern "C" SEXP _parentframecpp_call_report_from_cpp() {
   END_CPP11
 }
 // code.cpp
+void call_report_from_cpp_fixed(SEXP caller_env);
+extern "C" SEXP _parentframecpp_call_report_from_cpp_fixed(SEXP caller_env) {
+  BEGIN_CPP11
+    call_report_from_cpp_fixed(cpp11::as_cpp<cpp11::decay_t<SEXP>>(caller_env));
+    return R_NilValue;
+  END_CPP11
+}
+// code.cpp
 cpp11::sexp call_cleanup_from_cpp();
 extern "C" SEXP _parentframecpp_call_cleanup_from_cpp() {
   BEGIN_CPP11
     return cpp11::as_sexp(call_cleanup_from_cpp());
+  END_CPP11
+}
+// code.cpp
+SEXP call_cleanup_from_cpp_fixed(SEXP caller_env);
+extern "C" SEXP _parentframecpp_call_cleanup_from_cpp_fixed(SEXP caller_env) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(call_cleanup_from_cpp_fixed(cpp11::as_cpp<cpp11::decay_t<SEXP>>(caller_env)));
   END_CPP11
 }
 // code.cpp
@@ -28,12 +43,23 @@ extern "C" SEXP _parentframecpp_call_error_from_cpp(SEXP x) {
     return R_NilValue;
   END_CPP11
 }
+// code.cpp
+void call_error_from_cpp_fixed(SEXP x, SEXP caller_env);
+extern "C" SEXP _parentframecpp_call_error_from_cpp_fixed(SEXP x, SEXP caller_env) {
+  BEGIN_CPP11
+    call_error_from_cpp_fixed(cpp11::as_cpp<cpp11::decay_t<SEXP>>(x), cpp11::as_cpp<cpp11::decay_t<SEXP>>(caller_env));
+    return R_NilValue;
+  END_CPP11
+}
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
-    {"_parentframecpp_call_cleanup_from_cpp", (DL_FUNC) &_parentframecpp_call_cleanup_from_cpp, 0},
-    {"_parentframecpp_call_error_from_cpp",   (DL_FUNC) &_parentframecpp_call_error_from_cpp,   1},
-    {"_parentframecpp_call_report_from_cpp",  (DL_FUNC) &_parentframecpp_call_report_from_cpp,  0},
+    {"_parentframecpp_call_cleanup_from_cpp",       (DL_FUNC) &_parentframecpp_call_cleanup_from_cpp,       0},
+    {"_parentframecpp_call_cleanup_from_cpp_fixed", (DL_FUNC) &_parentframecpp_call_cleanup_from_cpp_fixed, 1},
+    {"_parentframecpp_call_error_from_cpp",         (DL_FUNC) &_parentframecpp_call_error_from_cpp,         1},
+    {"_parentframecpp_call_error_from_cpp_fixed",   (DL_FUNC) &_parentframecpp_call_error_from_cpp_fixed,   2},
+    {"_parentframecpp_call_report_from_cpp",        (DL_FUNC) &_parentframecpp_call_report_from_cpp,        0},
+    {"_parentframecpp_call_report_from_cpp_fixed",  (DL_FUNC) &_parentframecpp_call_report_from_cpp_fixed,  1},
     {NULL, NULL, 0}
 };
 }

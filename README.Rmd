@@ -158,3 +158,50 @@ via_cpp_error()
 
 When called via pure R, the error correctly reports `via_r_error()` as the source.
 When routed through C++, `caller_env()` resolves to `globalenv()` and the error doesn't mention `via_cpp_error()` at all.
+
+## A fix: using `Rf_eval()` with the caller's environment
+
+The problem occurs because directly invoking an R function from C++ (via `cpp11::function`) creates a "top-level" call that isn't nested in the R call stack.
+
+The fix: instead of calling the function directly, construct a call object and evaluate it *in* the caller's environment using `Rf_eval()`.
+
+The R wrapper passes its environment to C++:
+
+```{r}
+via_cpp_fixed
+```
+The C++ code builds a call and evaluates it in that environment:
+
+```cpp
+[[cpp11::register]]
+void call_report_from_cpp_fixed(SEXP caller_env) {
+  // Look up function using R's namespace API
+  SEXP ns = PROTECT(R_FindNamespace(Rf_mkString("parentframecpp")));
+  SEXP fn = Rf_findVarInFrame(ns, Rf_install("report_parent"));
+
+  // Build a call: report_parent()
+  SEXP call = PROTECT(Rf_lang1(fn));
+
+  // Evaluate the call in the caller's environment
+  Rf_eval(call, caller_env);
+
+  UNPROTECT(2);
+}
+```
+
+Now `parent.frame()` correctly resolves:
+
+```{r}
+via_cpp_fixed()
+```
+
+The same pattern fixes the other examples:
+
+```{r}
+tf_fixed <- via_cpp_cleanup_fixed()
+file.exists(tf_fixed)
+```
+
+```{r, error = TRUE}
+via_cpp_error_fixed()
+```
