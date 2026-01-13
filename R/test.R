@@ -41,5 +41,7 @@ via_r_cleanup <- function() {
 #' @export
 via_cpp_cleanup <- function() {
   I_am_via_cpp_cleanup <- TRUE
-  call_cleanup_from_cpp()
+  path <- call_cleanup_from_cpp()
+  cat("File exists after helper via C++:", file.exists(path), "\n")
+  path
 }
